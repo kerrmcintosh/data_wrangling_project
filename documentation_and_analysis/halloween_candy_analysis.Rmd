@@ -1,0 +1,133 @@
+---
+title: "halloween_sweets_analysis"
+author: "Kerr McIntosh"
+date: "21/07/2020"
+output: html_document
+---
+
+**Project Summary**
+I have compiled 3 separate years worth of data relating to a survey carried out around halloween 2015, 2016 and 2017 with the intent of finding out nostalgic feelings related to historic popular candy sweets gifted at halloween.  A  lot of the data in the sheet wasn't directly relevant to the sweets themselves ( and which our interest is in) and so I discarded such unrelated data from my analysis.
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+halloween_clean_data <- read_csv(here::here("clean_data/halloween_candy_clean_data.csv"))
+```
+
+
+**1) There were 752,978 candy ratings carried out over the three years**
+```{r}
+num_candy_ratings <- halloween_clean_data %>%
+  drop_na(reaction) %>% 
+  nrow()
+num_candy_ratings
+```
+
+**2) Average age of tricker treaters was 35 and non tricker treaters 39.**
+```{r}
+num_candy_ratings <- halloween_clean_data %>%
+  select(survey_id, age, going_out) %>%
+  group_by(going_out) %>%
+  drop_na() %>% 
+  summarise(average_age = round(mean(age, na.rm=TRUE)))
+
+num_candy_ratings
+```
+
+**3) The halloween treat resulting in the most despair was a broken_glow_stick.  The treat resulting in the most joy was any full sized candy bar ( and the next best a brand reeses peanut butter cups).  The most indifference (Mehs) came from lollipops.**
+```{r}
+most_rated <- halloween_clean_data %>%
+  group_by(reaction, treat) %>% 
+  summarise(count = n()) %>% 
+  filter(count == max(count))
+
+most_rated           
+
+```
+
+**4)1,990 people rated Starburst with despair**
+```{r}
+starburst_despair <- halloween_clean_data %>%
+  filter(str_detect(treat, "starburst")) %>% 
+  filter(reaction == "despair" ) %>% 
+  distinct(survey_id) %>% 
+  nrow()
+starburst_despair
+```
+
+```{r}
+treat_scoring <- halloween_clean_data %>%
+  mutate(score = case_when(
+  reaction == "despair" ~ -1,
+  reaction == "joy" ~ 1,
+  reaction == "meh" ~ 0
+))
+
+
+treat_scoring
+```
+
+**6) the highest scoring candy bar for males was any full sized candy bar ( the highest brand was hershey's milk chocolate).  For females it was hershey's milk chocolate.**
+
+```{r}
+highest_gender <- treat_scoring %>% 
+ select(gender, treat, score) %>%
+  group_by(gender, treat) %>% 
+  summarise(score = n()) %>% 
+  slice(which.max(score)) %>% 
+  drop_na() %>% 
+  arrange(desc(score))
+highest_gender
+
+# detailed look at gender choices
+highest_female <- treat_scoring %>% 
+  filter(gender == "female") %>% 
+  group_by(treat) %>% 
+  summarise(score = n()) %>% 
+  arrange(desc(score))
+head(highest_female, 6)
+
+highest_male <- treat_scoring %>% 
+  filter(gender == "male") %>% 
+  group_by(treat) %>% 
+  summarise(score = n()) %>% 
+  arrange(desc(score))
+head(highest_male, 6)
+
+
+```
+
+**7) In 2015 the most popular bar was Reese's peanut butter cups. In 2016 it was Candy Corn or any full sized candy bar - both same score.  In 2017 it was peanut butter MnMs.**
+```{r}
+treat_scoring <- treat_scoring %>% 
+  mutate(year = case_when(
+  str_detect(survey_id, "2015") ~ "2015",
+  str_detect(survey_id, "2016") ~ "2016",
+  str_detect(survey_id, "2017") ~ "2017",
+))
+
+highest <- treat_scoring %>% 
+  group_by(year, treat)  %>% 
+  summarise(score = n()) %>% 
+  filter(score== max(score))
+highest
+
+
+```
+
+**Below is a list of the most popular candy bars in each surveyed country**
+```{r}
+treat_by_country <- treat_scoring %>% 
+  select(country, treat, score) %>% 
+  group_by(country, treat) %>% 
+  summarise(most_popular = n()) %>% 
+  slice(which.max(most_popular)) %>% 
+  drop_na() %>% 
+  arrange(desc(most_popular))
+
+treat_by_country 
+  
+```
+ 
